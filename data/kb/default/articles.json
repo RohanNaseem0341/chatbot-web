@@ -1,0 +1,19 @@
+{
+  "site_id": "default",
+  "articles": [
+    {
+      "id": "kb_sample_hours",
+      "title": "Business hours",
+      "content": "We are open Monday to Friday, 9:00 AM to 6:00 PM (local time). Weekend support is available by appointment only.",
+      "tags": ["hours", "support"],
+      "updated_at": "2026-10-14T00:00:00.000Z"
+    },
+    {
+      "id": "kb_sample_contact",
+      "title": "Contact and human support",
+      "content": "For billing or account issues, use the Talk to human button in the chat widget. An admin will join the conversation live through the ChatOven mobile app.",
+      "tags": ["contact", "human"],
+      "updated_at": "2026-10-14T00:00:00.000Z"
+    }
+  ]
+}

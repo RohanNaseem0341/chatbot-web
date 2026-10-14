@@ -1,0 +1,16 @@
+<!--
+  Paste on any client website (React, Vue, plain HTML, etc.).
+  Replace SITE_KEY and CHAT_ORIGIN with values you provisioned.
+-->
+<script>
+  (function () {
+    var SITE_KEY = "pk_live_replace_me";
+    var CHAT_ORIGIN = "https://your-chatoven-nextjs-host.com";
+    var frame = document.createElement("iframe");
+    frame.src = CHAT_ORIGIN + "/?embed=1&site_key=" + encodeURIComponent(SITE_KEY);
+    frame.title = "ChatOven";
+    frame.style.cssText =
+      "position:fixed;right:16px;bottom:16px;width:380px;height:560px;border:0;z-index:99999;background:transparent;";
+    document.body.appendChild(frame);
+  })();
+</script>
