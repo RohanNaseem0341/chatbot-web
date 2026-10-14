@@ -77,18 +77,52 @@ function getInternalSecret(): string {
   );
 }
 
-/** Persist an AI/human message on FastAPI so Flutter admins see it live. */
+/**
+ * Persist an AI reply on FastAPI so Flutter admins see it live.
+ * Prefers site_key `/visitor/ai-reply` (platform); falls back to internal secret.
+ */
 export async function postChatServerMessage(params: {
   sessionId: string;
   conversationId?: string;
   content: string;
   senderType?: "ai" | "human" | "visitor";
+  siteKey?: string;
 }): Promise<{ ok: boolean; message_id?: number | string }> {
+  const base = getChatServerUrl();
+  const siteKey = (params.siteKey || getSiteKey()).trim();
+  const senderType = params.senderType || "ai";
+
+  if (senderType === "ai" && siteKey) {
+    const res = await fetch(`${base}/visitor/ai-reply`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        site_key: siteKey,
+        session_id: params.sessionId,
+        conversation_id: params.conversationId || null,
+        content: params.content,
+      }),
+      cache: "no-store",
+    });
+    if (res.ok) {
+      return res.json();
+    }
+    const text = await res.text().catch(() => "");
+    // Fall through to internal secret if the platform route is not deployed yet.
+    if (res.status !== 404) {
+      throw new Error(`visitor ai-reply failed (${res.status}): ${text}`);
+    }
+  }
+
   const secret = getInternalSecret();
   if (!secret) {
-    return { ok: false };
+    throw new Error(
+      "CHAT_INTERNAL_SECRET missing and /visitor/ai-reply unavailable",
+    );
   }
-  const base = getChatServerUrl();
   const res = await fetch(`${base}/internal/message`, {
     method: "POST",
     headers: {
@@ -99,7 +133,7 @@ export async function postChatServerMessage(params: {
     body: JSON.stringify({
       session_id: params.sessionId,
       conversation_id: params.conversationId || null,
-      sender_type: params.senderType || "ai",
+      sender_type: senderType,
       content: params.content,
     }),
     cache: "no-store",

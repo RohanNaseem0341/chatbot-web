@@ -184,8 +184,17 @@ export class VisitorWebSocketClient {
 
       this.ackMessage(messageId);
 
-      if (sender === "system" || !content) return;
+      if (!content) return;
       if (sender === "visitor") return;
+
+      if (sender === "system") {
+        this.handlers.onHumanMessage({
+          message_id: messageId as string | number | undefined,
+          content,
+          sender_type: "system",
+        });
+        return;
+      }
 
       if (sender === "human" || sender === "admin") {
         this.handlers.onHumanMessage({

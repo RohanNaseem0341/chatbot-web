@@ -197,11 +197,14 @@ a {
 .bubble-system {
   align-self: center;
   max-width: 95%;
-  background: transparent;
-  color: var(--chatoven-ink-soft);
-  font-size: 0.78rem;
+  background: rgba(15, 110, 86, 0.08);
+  border: 1px solid rgba(15, 110, 86, 0.18);
+  color: var(--chatoven-ink);
+  font-size: 0.82rem;
   text-align: center;
-  padding: 0.35rem 0.5rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 12px;
+  white-space: pre-wrap;
 }
 
 .chatoven-lead {

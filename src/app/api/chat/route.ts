@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateGroundedReply } from "@/lib/ai/generate-reply";
 import type { ChatTurn } from "@/lib/ai/providers";
-import { postChatServerMessage } from "@/lib/chat-server";
+import { getSiteKey, postChatServerMessage } from "@/lib/chat-server";
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,6 +37,7 @@ export async function POST(request: NextRequest) {
     });
 
     let syncedMessageId: number | string | null = null;
+    let syncError: string | null = null;
     const sessionId = (body.session_id || "").trim();
     if (sessionId && result.reply) {
       try {
@@ -45,12 +46,16 @@ export async function POST(request: NextRequest) {
           conversationId: body.conversation_id,
           content: result.reply,
           senderType: "ai",
+          siteKey: getSiteKey(),
         });
         if (synced.message_id != null) {
           syncedMessageId = synced.message_id;
+        } else if (!synced.ok) {
+          syncError = "AI reply was not saved to chat server";
         }
-      } catch {
-        // Widget still shows the reply; admin sync is best-effort.
+      } catch (err) {
+        syncError = err instanceof Error ? err.message : "AI sync failed";
+        console.error("[api/chat] AI sync failed:", syncError);
       }
     }
 
@@ -62,6 +67,8 @@ export async function POST(request: NextRequest) {
       session_id: body.session_id ?? null,
       site_id: siteId,
       message_id: syncedMessageId,
+      sync_ok: syncedMessageId != null,
+      sync_error: syncError,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Chat failed";

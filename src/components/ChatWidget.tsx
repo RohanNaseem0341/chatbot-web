@@ -126,12 +126,22 @@ export function ChatWidget({ siteKey }: { siteKey: string }) {
           const next = modeFromStatus(status);
           if (next) setMode(next);
           if (status === "closed") {
+            setShowLeadForm(false);
             setMessages((prev) => [
               ...prev,
               {
                 id: `sys_${Date.now()}`,
                 role: "system",
                 content: "Chat ended by admin.",
+              },
+            ]);
+          } else if (status === "handed_back_to_ai") {
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: `sys_${Date.now()}`,
+                role: "system",
+                content: "You’re back with AI — ask anything.",
               },
             ]);
           }
@@ -147,9 +157,11 @@ export function ChatWidget({ siteKey }: { siteKey: string }) {
           if (seenHumanIds.current.has(key)) return;
           seenHumanIds.current.add(key);
           const role =
-            msg.sender_type === "ai" || msg.sender_type === "assistant"
-              ? "assistant"
-              : "human";
+            msg.sender_type === "system"
+              ? "system"
+              : msg.sender_type === "ai" || msg.sender_type === "assistant"
+                ? "assistant"
+                : "human";
           if (role === "human") setMode("human");
           setMessages((prev) => [
             ...prev,
@@ -244,6 +256,9 @@ export function ChatWidget({ siteKey }: { siteKey: string }) {
       if (!res.ok) {
         throw new Error(data.error || "Could not submit form");
       }
+      const thanksId = `sys_lead_${Date.now()}`;
+      seenHumanIds.current.add(thanksId);
+      seenHumanIds.current.add("Thanks — your details were sent to the team.");
       setShowLeadForm(false);
       setLeadName("");
       setLeadEmail("");
@@ -252,7 +267,7 @@ export function ChatWidget({ siteKey }: { siteKey: string }) {
       setMessages((prev) => [
         ...prev,
         {
-          id: `sys_${Date.now()}`,
+          id: thanksId,
           role: "system",
           content: "Thanks — your details were sent to the team.",
         },
