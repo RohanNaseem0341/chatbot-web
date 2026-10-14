@@ -68,3 +68,45 @@ export function visitorWebSocketUrl(visitorToken: string): string {
   const wsBase = httpBase.replace(/^http/, "ws");
   return `${wsBase}/ws/visitor?token=${encodeURIComponent(visitorToken)}`;
 }
+
+function getInternalSecret(): string {
+  return (
+    process.env.CHAT_INTERNAL_SECRET?.trim() ||
+    process.env.WORDPRESS_INTERNAL_SECRET?.trim() ||
+    ""
+  );
+}
+
+/** Persist an AI/human message on FastAPI so Flutter admins see it live. */
+export async function postChatServerMessage(params: {
+  sessionId: string;
+  conversationId?: string;
+  content: string;
+  senderType?: "ai" | "human" | "visitor";
+}): Promise<{ ok: boolean; message_id?: number | string }> {
+  const secret = getInternalSecret();
+  if (!secret) {
+    return { ok: false };
+  }
+  const base = getChatServerUrl();
+  const res = await fetch(`${base}/internal/message`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "X-Internal-Secret": secret,
+    },
+    body: JSON.stringify({
+      session_id: params.sessionId,
+      conversation_id: params.conversationId || null,
+      sender_type: params.senderType || "ai",
+      content: params.content,
+    }),
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`internal message failed (${res.status}): ${text}`);
+  }
+  return res.json();
+}

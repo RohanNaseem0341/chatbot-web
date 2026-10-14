@@ -65,8 +65,13 @@ export function ChatWidget({ siteKey }: { siteKey: string }) {
   ]);
 
   const wsRef = useRef<VisitorWebSocketClient | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const seenHumanIds = useRef<Set<string>>(new Set());
   const canChat = Boolean(siteKey);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, showLeadForm]);
 
   const ensureSession = useCallback(async () => {
     if (session) return session;
@@ -301,6 +306,7 @@ export function ChatWidget({ siteKey }: { siteKey: string }) {
         body: JSON.stringify({
           message: text,
           session_id: active.session_id,
+          conversation_id: active.conversation_id,
           site_id: active.site_id,
           history,
         }),
@@ -309,12 +315,19 @@ export function ChatWidget({ siteKey }: { siteKey: string }) {
       if (!res.ok) {
         throw new Error(data.error || "Chat failed");
       }
+      const reply = data.reply || "(empty reply)";
+      const replyId = data.message_id
+        ? String(data.message_id)
+        : `a_${Date.now()}`;
+      // Prevent WS echo of the same AI reply from duplicating in the widget.
+      seenHumanIds.current.add(replyId);
+      seenHumanIds.current.add(reply);
       setMessages((prev) => [
         ...prev,
         {
-          id: `a_${Date.now()}`,
+          id: replyId,
           role: "assistant",
-          content: data.reply || "(empty reply)",
+          content: reply,
         },
       ]);
     } catch (err) {
@@ -334,7 +347,7 @@ export function ChatWidget({ siteKey }: { siteKey: string }) {
       {open && (
         <section className="chatoven-panel" aria-label="ChatOven chat">
           <header className="chatoven-header">
-            <div>
+            <div className="chatoven-header-copy">
               <strong>ChatOven</strong>
               <p>{statusLine}</p>
             </div>
@@ -345,79 +358,108 @@ export function ChatWidget({ siteKey }: { siteKey: string }) {
           <div className="chatoven-messages">
             {messages.map((msg) => (
               <div key={msg.id} className={`bubble bubble-${msg.role}`}>
+                {msg.role === "human" && (
+                  <span className="bubble-label">Agent</span>
+                )}
+                {msg.role === "assistant" && (
+                  <span className="bubble-label">AI</span>
+                )}
                 {msg.content}
               </div>
             ))}
+            {showLeadForm && (
+              <form className="chatoven-lead" onSubmit={submitLead}>
+                <div className="chatoven-lead-head">
+                  <strong>Share your details</strong>
+                  <p>We’ll pass this to the agent joining the chat.</p>
+                </div>
+                <label className="chatoven-field">
+                  <span>Name</span>
+                  <input
+                    placeholder="Your name"
+                    value={leadName}
+                    onChange={(e) => setLeadName(e.target.value)}
+                    disabled={busy}
+                    autoComplete="name"
+                  />
+                </label>
+                <label className="chatoven-field">
+                  <span>Email</span>
+                  <input
+                    placeholder="you@example.com"
+                    type="email"
+                    value={leadEmail}
+                    onChange={(e) => setLeadEmail(e.target.value)}
+                    disabled={busy}
+                    autoComplete="email"
+                  />
+                </label>
+                <label className="chatoven-field">
+                  <span>Phone</span>
+                  <input
+                    placeholder="+1 …"
+                    value={leadPhone}
+                    onChange={(e) => setLeadPhone(e.target.value)}
+                    disabled={busy}
+                    autoComplete="tel"
+                  />
+                </label>
+                <label className="chatoven-field">
+                  <span>Message</span>
+                  <textarea
+                    placeholder="How can we help?"
+                    value={leadMessage}
+                    onChange={(e) => setLeadMessage(e.target.value)}
+                    rows={2}
+                    disabled={busy}
+                  />
+                </label>
+                <div className="chatoven-lead-actions">
+                  <button type="submit" disabled={busy}>
+                    Send details
+                  </button>
+                  <button
+                    type="button"
+                    className="chatoven-lead-skip"
+                    onClick={() => setShowLeadForm(false)}
+                    disabled={busy}
+                  >
+                    Skip for now
+                  </button>
+                </div>
+              </form>
+            )}
+            <div ref={messagesEndRef} />
           </div>
-          {showLeadForm && (
-            <form className="chatoven-lead" onSubmit={submitLead}>
-              <strong>Connect with our team</strong>
-              <input
-                placeholder="Name"
-                value={leadName}
-                onChange={(e) => setLeadName(e.target.value)}
-                disabled={busy}
-              />
-              <input
-                placeholder="Email"
-                type="email"
-                value={leadEmail}
-                onChange={(e) => setLeadEmail(e.target.value)}
-                disabled={busy}
-              />
-              <input
-                placeholder="Phone"
-                value={leadPhone}
-                onChange={(e) => setLeadPhone(e.target.value)}
-                disabled={busy}
-              />
-              <textarea
-                placeholder="How can we help?"
-                value={leadMessage}
-                onChange={(e) => setLeadMessage(e.target.value)}
-                rows={2}
-                disabled={busy}
-              />
-              <div className="chatoven-lead-actions">
-                <button type="submit" disabled={busy}>
-                  Submit
-                </button>
+          <div className="chatoven-footer">
+            {mode === "ai" && (
+              <div className="chatoven-actions">
                 <button
                   type="button"
-                  className="chatoven-lead-skip"
-                  onClick={() => setShowLeadForm(false)}
-                  disabled={busy}
+                  className="chatoven-human-btn"
+                  onClick={requestHuman}
+                  disabled={!session || busy}
                 >
-                  Skip
+                  Talk to human
                 </button>
               </div>
+            )}
+            <form className="chatoven-form" onSubmit={onSubmit}>
+              <input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder={
+                  mode === "human" || mode === "waiting"
+                    ? "Message the agent…"
+                    : "Type a message…"
+                }
+                disabled={!canChat || busy}
+              />
+              <button type="submit" disabled={!canChat || busy || !input.trim()}>
+                Send
+              </button>
             </form>
-          )}
-          <div className="chatoven-actions">
-            <button
-              type="button"
-              className="chatoven-human-btn"
-              onClick={requestHuman}
-              disabled={!session || busy || mode !== "ai"}
-            >
-              Talk to human
-            </button>
           </div>
-          <form className="chatoven-form" onSubmit={onSubmit}>
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder={
-                mode === "human" || mode === "waiting"
-                  ? "Message the agent…"
-                  : "Type a message…"
-              }
-              disabled={!canChat || busy}
-            />
-            <button type="submit" disabled={!canChat || busy || !input.trim()}>
-              Send
-            </button>
-          </form>
         </section>
       )}
       <button

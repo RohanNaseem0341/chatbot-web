@@ -1,6 +1,12 @@
 .embedMain {
   min-height: 100vh;
   background: transparent;
+  /* Let clicks pass through the empty iframe area to the host page. */
+  pointer-events: none;
+}
+
+.embedMain :global(.chatoven-root) {
+  pointer-events: auto;
 }
 
 .main {

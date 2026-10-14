@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { ChatWidget } from "@/components/ChatWidget";
 import styles from "@/app/page.module.css";
@@ -8,6 +9,16 @@ export function HomeClient({ defaultSiteKey }: { defaultSiteKey: string }) {
   const params = useSearchParams();
   const siteKey = (params.get("site_key") || defaultSiteKey).trim();
   const embed = params.get("embed") === "1";
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (embed) {
+      root.setAttribute("data-chatoven-embed", "1");
+    } else {
+      root.removeAttribute("data-chatoven-embed");
+    }
+    return () => root.removeAttribute("data-chatoven-embed");
+  }, [embed]);
 
   if (embed) {
     return (
